@@ -1,48 +1,75 @@
-import { useSelector, useDispatch } from "react-redux";
-import { useEffect } from "react";
-import s from "./ContactList.module.css";
+import { useEffect } from 'react';
+import { connect, useDispatch } from 'react-redux';
 import {
-  getContacts,
-  removeContact,
-} from "../../redux/contacts/contacts-operations";
-import {
-  getContactsFromState,
-  getFilterFromState,
-} from "../../redux/contacts/contacts-selectors";
+  fetchContacts,
+  deleteContact,
+} from '../../redux/contacts/contacts-operations';
+import PropTypes from 'prop-types';
+import Contact from './Contact';
+import s from './ContactList.module.css';
 
-export default function ContactList() {
-  const contacts = useSelector(getContactsFromState);
-  const filter = useSelector(getFilterFromState);
+const ContactList = ({ contacts, onDeleteContact, isLoading }) => {
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    dispatch(getContacts());
-  }, [dispatch]);
-
-  function getVisibleContacts() {
-    const normalizedFilter = filter.toLowerCase();
-    return contacts.filter((contact) =>
-      contact.name.toLowerCase().includes(normalizedFilter)
-    );
-  }
-
-  const visibleContacts = getVisibleContacts();
+  useEffect(() => dispatch(fetchContacts()), [dispatch]);
 
   return (
-    <ul className={s.list}>
-      {visibleContacts &&
-        visibleContacts.map(({ name, number, id }) => (
-          <li className={s.listItem} key={id}>
-            {`${name}: ${number}`}
-            <button
-              className={s.btn}
-              type="button"
-              onClick={() => dispatch(removeContact(id))}
-            >
-              Remove
-            </button>
-          </li>
+    <>
+      {isLoading ? (
+        <h1>Загружаем...</h1>
+      ) : (
+        <ul className={s.list}>
+          {contacts.map(({ id, name, number, phone }) => (
+            <Contact
+              key={id}
+              name={name}
+              number={number || phone}
+              onClick={() => onDeleteContact(id)}
+            />
+          ))}
+        </ul>
+      )}
+      {/* {isLoading && <h1>Загружаем...</h1>}
+      <ul className={s.list}>
+        {contacts.map(({ id, name, number, phone }) => (
+          <Contact
+            key={id}
+            name={name}
+            number={number || phone}
+            onClick={() => onDeleteContact(id)}
+          />
         ))}
-    </ul>
+      </ul> */}
+    </>
   );
-}
+};
+ContactList.propTypes = {
+  onDeleteContact: PropTypes.func.isRequired,
+  contacts: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      name: PropTypes.string.isRequired,
+      number: PropTypes.string,
+      phone: PropTypes.string,
+    })
+  ),
+};
+
+const getVisibleContacts = (contacts, filter) => {
+  const normalizedFilter = filter.toLowerCase();
+
+  return contacts.filter(contact =>
+    contact.name.toLowerCase().includes(normalizedFilter)
+  );
+};
+
+const mapStateToProps = ({ contacts: { items, filter, loading } }) => ({
+  contacts: getVisibleContacts(items, filter),
+  isLoading: loading,
+});
+
+const mapDispatchToProps = dispatch => ({
+  onDeleteContact: id => dispatch(deleteContact(id)),
+});
+
+export default connect(mapStateToProps, mapDispatchToProps)(ContactList);
